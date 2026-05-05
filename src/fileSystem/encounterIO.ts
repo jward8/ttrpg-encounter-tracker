@@ -1,5 +1,26 @@
 import { Encounter } from './schema';
 
+export async function loadLatestEncounter(
+  dirHandle: FileSystemDirectoryHandle,
+  campaignId: string,
+): Promise<Encounter | null> {
+  try {
+    const campaignDir = await dirHandle.getDirectoryHandle(campaignId);
+    const encounterDir = await campaignDir.getDirectoryHandle('encounters');
+    let latest: Encounter | null = null;
+    for await (const entry of encounterDir.values()) {
+      if (entry.kind !== 'file' || !entry.name.endsWith('.json')) continue;
+      const file = await (entry as FileSystemFileHandle).getFile();
+      const text = await file.text();
+      const enc = JSON.parse(text) as Encounter;
+      if (!latest || enc.updated_at > latest.updated_at) latest = enc;
+    }
+    return latest;
+  } catch {
+    return null;
+  }
+}
+
 export async function saveEncounter(
   encounter: Encounter,
   dirHandle: FileSystemDirectoryHandle

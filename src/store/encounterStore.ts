@@ -6,25 +6,21 @@ import type {
 } from '../fileSystem/schema';
 import { applyDamage as damageEngineApply } from '../engine/damageEngine';
 import { getRecommendedActions } from '../engine/tacticEngine';
-import {
-  FAKE_COMBATANTS,
-  FAKE_LOG_ENTRIES,
-  FAKE_CURRENT_TURN_INDEX,
-  FAKE_ROUND,
-} from '../components/combat/fakeCombatData';
+import { loadLatestEncounter } from '../fileSystem/encounterIO';
+import { useCampaignStore } from './campaignStore';
 
 const MAX_UNDO = 20;
 
 const INITIAL_ENCOUNTER: Encounter = {
-  id: 'demo-encounter-1',
-  campaign_id: 'demo-campaign-1',
-  name: 'Tomb of Annihilation — Session 12',
-  status: 'active',
-  tactics_enabled: true,
-  current_round: FAKE_ROUND,
-  current_turn_index: FAKE_CURRENT_TURN_INDEX,
-  combatants: FAKE_COMBATANTS,
-  combat_log: FAKE_LOG_ENTRIES,
+  id: crypto.randomUUID(),
+  campaign_id: '',
+  name: 'New Encounter',
+  status: 'setup',
+  tactics_enabled: false,
+  current_round: 1,
+  current_turn_index: 0,
+  combatants: [],
+  combat_log: [],
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
@@ -46,6 +42,13 @@ interface EncounterStore {
 
   openDirectory: () => Promise<void>;
   loadEncounterFromFile: (file: File) => Promise<void>;
+
+  createNewEncounter: (name: string, campaignId: string, tacticsEnabled: boolean) => void;
+  updateEncounterMeta: (name: string, campaignId: string, tacticsEnabled: boolean) => void;
+  addCombatant: (combatant: Combatant) => void;
+  removeCombatant: (id: string) => void;
+  setAllInitiatives: (values: Record<string, number>) => void;
+  startCombat: () => void;
 
   advanceTurn: () => void;
   setEncounterStatus: (status: EncounterStatus) => void;
@@ -108,11 +111,24 @@ export const useEncounterStore = create<EncounterStore>()(
     encounter: INITIAL_ENCOUNTER,
     past: [],
     dirHandle: null,
-    recommendedActionIds: computeRecommended(INITIAL_ENCOUNTER),
+    recommendedActionIds: [],
 
     openDirectory: async () => {
       const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
       set({ dirHandle: handle });
+      await useCampaignStore.getState().loadCampaignFromDir(handle);
+      const campaign = useCampaignStore.getState().campaign;
+      if (campaign) {
+        const resumed = await loadLatestEncounter(handle, campaign.id);
+        if (resumed) {
+          set({ encounter: resumed, past: [], recommendedActionIds: computeRecommended(resumed) });
+        } else {
+          const { encounter: current } = get();
+          set({
+            encounter: { ...current, campaign_id: campaign.id, updated_at: new Date().toISOString() },
+          });
+        }
+      }
     },
 
     loadEncounterFromFile: async (file: File) => {
@@ -122,6 +138,92 @@ export const useEncounterStore = create<EncounterStore>()(
         encounter,
         past: [],
         recommendedActionIds: computeRecommended(encounter),
+      });
+    },
+
+    createNewEncounter: (name: string, campaignId: string, tacticsEnabled: boolean) => {
+      const now = new Date().toISOString();
+      const newEncounter: Encounter = {
+        id: crypto.randomUUID(),
+        campaign_id: campaignId,
+        name,
+        status: 'setup',
+        tactics_enabled: tacticsEnabled,
+        current_round: 1,
+        current_turn_index: 0,
+        combatants: [],
+        combat_log: [],
+        created_at: now,
+        updated_at: now,
+      };
+      set({ encounter: newEncounter, past: [], recommendedActionIds: [] });
+    },
+
+    updateEncounterMeta: (name: string, campaignId: string, tacticsEnabled: boolean) => {
+      const { encounter } = get();
+      set({
+        encounter: {
+          ...encounter,
+          name,
+          campaign_id: campaignId,
+          tactics_enabled: tacticsEnabled,
+          updated_at: new Date().toISOString(),
+        },
+      });
+    },
+
+    addCombatant: (combatant: Combatant) => {
+      const { encounter } = get();
+      set({
+        encounter: {
+          ...encounter,
+          combatants: [...encounter.combatants, combatant],
+          updated_at: new Date().toISOString(),
+        },
+      });
+    },
+
+    removeCombatant: (id: string) => {
+      const { encounter } = get();
+      set({
+        encounter: {
+          ...encounter,
+          combatants: encounter.combatants.filter(c => c.id !== id),
+          updated_at: new Date().toISOString(),
+        },
+      });
+    },
+
+    setAllInitiatives: (values: Record<string, number>) => {
+      const { encounter } = get();
+      const newCombatants = encounter.combatants.map(c => ({
+        ...c,
+        initiative: values[c.id] ?? null,
+      }));
+      set({
+        encounter: { ...encounter, combatants: newCombatants, updated_at: new Date().toISOString() },
+      });
+    },
+
+    startCombat: () => {
+      const { encounter, past } = get();
+      const sorted = [...encounter.combatants].sort((a, b) => {
+        const ai = a.initiative ?? -Infinity;
+        const bi = b.initiative ?? -Infinity;
+        return bi - ai;
+      });
+      const newEncounter: Encounter = {
+        ...encounter,
+        combatants: sorted,
+        status: 'active',
+        current_turn_index: 0,
+        current_round: 1,
+        updated_at: new Date().toISOString(),
+      };
+      set({
+        encounter: newEncounter,
+        past: pushSnapshot(past, encounter),
+        recommendedActionIds: computeRecommended(newEncounter),
       });
     },
 
@@ -328,7 +430,6 @@ export const useEncounterStore = create<EncounterStore>()(
         }
       }
 
-      // Mark action spent on actor
       newCombatants = newCombatants.map(c => {
         if (c.id !== payload.actorId) return c;
         return updateActionInCombatant(c, payload.actionId, a => ({
@@ -339,7 +440,6 @@ export const useEncounterStore = create<EncounterStore>()(
         }));
       });
 
-      // Consume spell slot if applicable
       if (payload.consumeSpellSlotLevel !== undefined) {
         const level = payload.consumeSpellSlotLevel;
         newCombatants = newCombatants.map(c => {
