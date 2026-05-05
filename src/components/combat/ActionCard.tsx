@@ -39,10 +39,13 @@ export default function ActionCard({ action, isRecommended, recommendationReason
     ? 'border-2 border-amber-400'
     : 'border border-stone-700';
 
+  const interactiveClass =
+    !isUnavailable && onClick ? 'cursor-pointer hover:brightness-110' : 'cursor-default';
+
   return (
     <div
-      className={`rounded-lg p-3 bg-stone-800 cursor-pointer hover:brightness-110 transition-[filter] ${borderClass} ${isUnavailable ? 'opacity-40' : ''}`}
-      onClick={onClick ?? (() => {})}
+      className={`rounded-lg p-3 bg-stone-800 transition-[filter] ${borderClass} ${interactiveClass} ${isUnavailable ? 'opacity-40' : ''}`}
+      onClick={!isUnavailable ? onClick : undefined}
     >
       <div className="flex items-start justify-between gap-2">
         <span className="font-medium text-stone-100 text-sm">{action.name}</span>

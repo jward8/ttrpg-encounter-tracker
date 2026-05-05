@@ -1,14 +1,29 @@
-import type { Combatant } from '../../fileSystem/schema';
+import { useState } from 'react';
+import type { Combatant, CombatantAction, DamageType, SrdCondition } from '../../fileSystem/schema';
 import { ARCHETYPES } from '../../engine/archetypes';
 import { getRangeReason } from '../../engine/tacticEngine';
 import ActionCard from './ActionCard';
 import HpTracker from './HpTracker';
 import ResourceTracker from './ResourceTracker';
+import ConditionBadge from './ConditionBadge';
+
+const SRD_CONDITIONS: SrdCondition[] = [
+  'blinded', 'charmed', 'deafened', 'exhaustion', 'frightened',
+  'grappled', 'incapacitated', 'invisible', 'paralyzed', 'petrified',
+  'poisoned', 'prone', 'restrained', 'stunned', 'unconscious',
+];
 
 interface ActionPanelProps {
   combatant: Combatant;
   currentRound: number;
   recommendedActionIds: string[];
+  onActionClick?: (action: CombatantAction) => void;
+  onDamage?: (amount: number, damageType: DamageType) => void;
+  onHeal?: (amount: number) => void;
+  onSetTempHp?: (amount: number) => void;
+  onReactionUse?: () => void;
+  onApplyCondition?: (condition: string) => void;
+  onRemoveCondition?: (index: number) => void;
 }
 
 const TYPE_BADGE: Record<string, string> = {
@@ -34,7 +49,20 @@ const ARCHETYPE_COLORS: Record<string, string> = {
   survivor: 'bg-yellow-900 text-yellow-200 border border-yellow-700',
 };
 
-export default function ActionPanel({ combatant, currentRound, recommendedActionIds }: ActionPanelProps) {
+export default function ActionPanel({
+  combatant,
+  currentRound,
+  recommendedActionIds,
+  onActionClick,
+  onDamage,
+  onHeal,
+  onSetTempHp,
+  onReactionUse,
+  onApplyCondition,
+  onRemoveCondition,
+}: ActionPanelProps) {
+  const [selectedCondition, setSelectedCondition] = useState<SrdCondition>('blinded');
+
   const archetypeLabel = combatant.archetype ? ARCHETYPES[combatant.archetype].label : null;
   const archetypeColor = combatant.archetype
     ? (ARCHETYPE_COLORS[combatant.archetype] ?? 'bg-stone-700 text-stone-200 border border-stone-600')
@@ -44,6 +72,24 @@ export default function ActionPanel({ combatant, currentRound, recommendedAction
     combatant.reactions.length > 0 && combatant.reactions[0].available;
 
   const allResources = [...combatant.actions, ...combatant.bonus_actions];
+
+  function renderActionList(actions: CombatantAction[]) {
+    return (
+      <div className="flex flex-col gap-2">
+        {actions.map(action => (
+          <ActionCard
+            key={action.id}
+            action={action}
+            isRecommended={recommendedActionIds.includes(action.id)}
+            recommendationReason={
+              recommendedActionIds.includes(action.id) ? getRangeReason(action) : undefined
+            }
+            onClick={onActionClick && action.available ? () => onActionClick(action) : undefined}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -68,49 +114,61 @@ export default function ActionPanel({ combatant, currentRound, recommendedAction
         currentHp={combatant.current_hp}
         maxHp={combatant.max_hp}
         tempHp={combatant.temp_hp}
+        onDamage={onDamage}
+        onHeal={onHeal}
+        onSetTempHp={onSetTempHp}
       />
+
+      {/* Conditions */}
+      <section>
+        <p className="text-xs text-stone-400 uppercase tracking-wider mb-2">Conditions</p>
+        {combatant.conditions.length > 0 ? (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {combatant.conditions.map((c, i) => (
+              <ConditionBadge
+                key={i}
+                condition={c.condition}
+                onRemove={onRemoveCondition ? () => onRemoveCondition(i) : undefined}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-stone-600 text-sm italic mb-2">None</p>
+        )}
+        {onApplyCondition && (
+          <div className="flex items-center gap-1.5">
+            <select
+              value={selectedCondition}
+              onChange={e => setSelectedCondition(e.target.value as SrdCondition)}
+              className="bg-stone-700 border border-stone-600 rounded px-2 py-1 text-xs text-stone-200 focus:outline-none focus:border-stone-400"
+            >
+              {SRD_CONDITIONS.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => onApplyCondition(selectedCondition)}
+              className="text-xs bg-stone-700 hover:bg-stone-600 text-stone-200 px-2.5 py-1.5 rounded border border-stone-600 transition-colors"
+            >
+              Add
+            </button>
+          </div>
+        )}
+      </section>
 
       {/* Actions */}
       <section>
         <p className="text-xs text-stone-400 uppercase tracking-wider mb-2">Actions</p>
         {combatant.actions.length === 0 ? (
           <p className="text-stone-500 text-sm italic">No actions</p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {combatant.actions.map(action => (
-              <ActionCard
-                key={action.id}
-                action={action}
-                isRecommended={recommendedActionIds.includes(action.id)}
-                recommendationReason={
-                  recommendedActionIds.includes(action.id)
-                    ? getRangeReason(action)
-                    : undefined
-                }
-              />
-            ))}
-          </div>
-        )}
+        ) : renderActionList(combatant.actions)}
       </section>
 
       {/* Bonus Actions */}
       {combatant.bonus_actions.length > 0 && (
         <section className="pt-4 border-t border-stone-700">
           <p className="text-xs text-stone-400 uppercase tracking-wider mb-2">Bonus Actions</p>
-          <div className="flex flex-col gap-2">
-            {combatant.bonus_actions.map(action => (
-              <ActionCard
-                key={action.id}
-                action={action}
-                isRecommended={recommendedActionIds.includes(action.id)}
-                recommendationReason={
-                  recommendedActionIds.includes(action.id)
-                    ? getRangeReason(action)
-                    : undefined
-                }
-              />
-            ))}
-          </div>
+          {renderActionList(combatant.bonus_actions)}
         </section>
       )}
 
@@ -123,20 +181,7 @@ export default function ActionPanel({ combatant, currentRound, recommendedAction
               {combatant.legendary_actions_remaining}/{combatant.legendary_actions_max} remaining
             </span>
           </div>
-          <div className="flex flex-col gap-2">
-            {combatant.legendary_actions.map(action => (
-              <ActionCard
-                key={action.id}
-                action={action}
-                isRecommended={recommendedActionIds.includes(action.id)}
-                recommendationReason={
-                  recommendedActionIds.includes(action.id)
-                    ? getRangeReason(action)
-                    : undefined
-                }
-              />
-            ))}
-          </div>
+          {renderActionList(combatant.legendary_actions)}
         </section>
       )}
 
@@ -144,13 +189,22 @@ export default function ActionPanel({ combatant, currentRound, recommendedAction
       <section className="pt-4 border-t border-stone-700">
         <p className="text-xs text-stone-400 uppercase tracking-wider mb-2">Reaction</p>
         <div className="flex items-center gap-2">
-          <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium border ${
-            reactionAvailable
-              ? 'bg-emerald-900 text-emerald-300 border-emerald-700'
-              : 'bg-stone-800 text-stone-400 border-stone-600'
-          }`}>
-            {reactionAvailable ? 'Available' : 'Used'}
-          </span>
+          {onReactionUse && reactionAvailable ? (
+            <button
+              onClick={onReactionUse}
+              className="px-3 py-1 rounded-full text-sm font-medium border bg-emerald-900 text-emerald-300 border-emerald-700 hover:bg-emerald-800 transition-colors"
+            >
+              Available — Use
+            </button>
+          ) : (
+            <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium border ${
+              reactionAvailable
+                ? 'bg-emerald-900 text-emerald-300 border-emerald-700'
+                : 'bg-stone-800 text-stone-400 border-stone-600'
+            }`}>
+              {reactionAvailable ? 'Available' : 'Used'}
+            </span>
+          )}
           {combatant.reactions[0] && (
             <span className="text-sm text-stone-400">{combatant.reactions[0].name}</span>
           )}

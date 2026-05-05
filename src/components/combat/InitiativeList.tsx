@@ -4,10 +4,12 @@ import CombatantCard from './CombatantCard';
 interface InitiativeListProps {
   combatants: Combatant[];
   currentTurnIndex: number;
+  selectedCombatantId?: string;
+  onSelectCombatant: (id: string) => void;
 }
 
-export default function InitiativeList({ combatants, currentTurnIndex }: InitiativeListProps) {
-  const nextTurnIndex = (currentTurnIndex + 1) % combatants.length;
+export default function InitiativeList({ combatants, currentTurnIndex, selectedCombatantId, onSelectCombatant }: InitiativeListProps) {
+  const nextTurnIndex = combatants.length > 1 ? (currentTurnIndex + 1) % combatants.length : -1;
 
   return (
     <div className="flex flex-col h-full">
@@ -23,7 +25,8 @@ export default function InitiativeList({ combatants, currentTurnIndex }: Initiat
               combatant={combatant}
               isCurrentTurn={index === currentTurnIndex}
               isNextTurn={index === nextTurnIndex}
-              isSelected={false}
+              isSelected={combatant.id === selectedCombatantId}
+              onClick={() => onSelectCombatant(combatant.id)}
             />
           </li>
         ))}

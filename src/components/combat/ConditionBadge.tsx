@@ -1,5 +1,6 @@
 interface ConditionBadgeProps {
   condition: string;
+  onRemove?: () => void;
 }
 
 const CONDITION_COLORS: Record<string, string> = {
@@ -20,14 +21,23 @@ const CONDITION_COLORS: Record<string, string> = {
   invisible: 'bg-teal-700 text-teal-100',
 };
 
-export default function ConditionBadge({ condition }: ConditionBadgeProps) {
+export default function ConditionBadge({ condition, onRemove }: ConditionBadgeProps) {
   const colorClass = CONDITION_COLORS[condition] ?? 'bg-stone-600 text-stone-100';
   return (
     <span
       title={condition}
-      className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${colorClass}`}
+      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${colorClass}`}
     >
       {condition.slice(0, 4)}
+      {onRemove && (
+        <button
+          onClick={e => { e.stopPropagation(); onRemove(); }}
+          title={`Remove ${condition}`}
+          className="ml-0.5 opacity-60 hover:opacity-100 leading-none transition-opacity"
+        >
+          ×
+        </button>
+      )}
     </span>
   );
 }

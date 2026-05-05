@@ -32,7 +32,7 @@ export default function CombatantCard({
   combatant,
   isCurrentTurn,
   isNextTurn,
-  isSelected: _isSelected,
+  isSelected,
   onClick,
 }: CombatantCardProps) {
   const isDead = combatant.current_hp === 0;
@@ -42,6 +42,8 @@ export default function CombatantCard({
 
   const containerClass = isCurrentTurn
     ? 'border-2 border-amber-400 bg-amber-950/30'
+    : isSelected
+    ? 'border-2 border-sky-500 bg-sky-950/20'
     : isNextTurn
     ? 'border border-stone-500 bg-stone-800/80'
     : 'border border-stone-700 bg-stone-800';
