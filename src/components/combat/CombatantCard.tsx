@@ -1,5 +1,6 @@
 import type { Combatant } from '../../fileSystem/schema';
 import ConditionBadge from './ConditionBadge';
+import ArchetypeBadge from '../tactics/ArchetypeBadge';
 
 interface CombatantCardProps {
   combatant: Combatant;
@@ -71,6 +72,7 @@ export default function CombatantCard({
         {combatant.temp_hp > 0 && (
           <span className="text-xs text-sky-400">(+{combatant.temp_hp} tmp)</span>
         )}
+        <ArchetypeBadge archetype={combatant.archetype} />
       </div>
 
       <div className="mt-1 h-1.5 rounded-full bg-stone-700 overflow-hidden">

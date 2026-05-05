@@ -2,10 +2,10 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type {
   Encounter, Combatant, DamageType, ConditionInstance,
-  CombatLogEntry, EncounterStatus, CombatantAction,
+  CombatLogEntry, EncounterStatus, CombatantAction, Archetype,
 } from '../fileSystem/schema';
 import { applyDamage as damageEngineApply } from '../engine/damageEngine';
-import { getRecommendedActions } from '../engine/tacticEngine';
+import { getRecommendedActions, type RecommendedAction } from '../engine/tacticEngine';
 import { loadLatestEncounter } from '../fileSystem/encounterIO';
 import { useCampaignStore } from './campaignStore';
 
@@ -38,7 +38,7 @@ interface EncounterStore {
   encounter: Encounter;
   past: Encounter[];
   dirHandle: FileSystemDirectoryHandle | null;
-  recommendedActionIds: string[];
+  recommendedActions: RecommendedAction[];
 
   openDirectory: () => Promise<void>;
   loadEncounterFromFile: (file: File) => Promise<void>;
@@ -47,6 +47,7 @@ interface EncounterStore {
   updateEncounterMeta: (name: string, campaignId: string, tacticsEnabled: boolean) => void;
   addCombatant: (combatant: Combatant) => void;
   removeCombatant: (id: string) => void;
+  setCombatantArchetype: (id: string, archetype: Archetype) => void;
   setAllInitiatives: (values: Record<string, number>) => void;
   startCombat: () => void;
 
@@ -99,11 +100,11 @@ function updateActionInCombatant(
   };
 }
 
-function computeRecommended(encounter: Encounter): string[] {
+function computeRecommended(encounter: Encounter): RecommendedAction[] {
   if (!encounter.tactics_enabled) return [];
   const current = encounter.combatants[encounter.current_turn_index];
   if (!current) return [];
-  return getRecommendedActions(current, encounter.combatants).map(r => r.action.id);
+  return getRecommendedActions(current, encounter.combatants);
 }
 
 export const useEncounterStore = create<EncounterStore>()(
@@ -111,7 +112,7 @@ export const useEncounterStore = create<EncounterStore>()(
     encounter: INITIAL_ENCOUNTER,
     past: [],
     dirHandle: null,
-    recommendedActionIds: [],
+    recommendedActions: [],
 
     openDirectory: async () => {
       const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
@@ -121,7 +122,7 @@ export const useEncounterStore = create<EncounterStore>()(
       if (campaign) {
         const resumed = await loadLatestEncounter(handle, campaign.id);
         if (resumed) {
-          set({ encounter: resumed, past: [], recommendedActionIds: computeRecommended(resumed) });
+          set({ encounter: resumed, past: [], recommendedActions: computeRecommended(resumed) });
         } else {
           const { encounter: current } = get();
           set({
@@ -137,7 +138,7 @@ export const useEncounterStore = create<EncounterStore>()(
       set({
         encounter,
         past: [],
-        recommendedActionIds: computeRecommended(encounter),
+        recommendedActions: computeRecommended(encounter),
       });
     },
 
@@ -156,20 +157,19 @@ export const useEncounterStore = create<EncounterStore>()(
         created_at: now,
         updated_at: now,
       };
-      set({ encounter: newEncounter, past: [], recommendedActionIds: [] });
+      set({ encounter: newEncounter, past: [], recommendedActions: [] });
     },
 
     updateEncounterMeta: (name: string, campaignId: string, tacticsEnabled: boolean) => {
       const { encounter } = get();
-      set({
-        encounter: {
-          ...encounter,
-          name,
-          campaign_id: campaignId,
-          tactics_enabled: tacticsEnabled,
-          updated_at: new Date().toISOString(),
-        },
-      });
+      const newEncounter: Encounter = {
+        ...encounter,
+        name,
+        campaign_id: campaignId,
+        tactics_enabled: tacticsEnabled,
+        updated_at: new Date().toISOString(),
+      };
+      set({ encounter: newEncounter, recommendedActions: computeRecommended(newEncounter) });
     },
 
     addCombatant: (combatant: Combatant) => {
@@ -191,6 +191,21 @@ export const useEncounterStore = create<EncounterStore>()(
           combatants: encounter.combatants.filter(c => c.id !== id),
           updated_at: new Date().toISOString(),
         },
+      });
+    },
+
+    setCombatantArchetype: (id, archetype) => {
+      const { encounter, past } = get();
+      const newCombatants = updateCombatant(encounter.combatants, id, c => ({ ...c, archetype }));
+      const newEncounter: Encounter = {
+        ...encounter,
+        combatants: newCombatants,
+        updated_at: new Date().toISOString(),
+      };
+      set({
+        encounter: newEncounter,
+        past: pushSnapshot(past, encounter),
+        recommendedActions: computeRecommended(newEncounter),
       });
     },
 
@@ -223,7 +238,7 @@ export const useEncounterStore = create<EncounterStore>()(
       set({
         encounter: newEncounter,
         past: pushSnapshot(past, encounter),
-        recommendedActionIds: computeRecommended(newEncounter),
+        recommendedActions: computeRecommended(newEncounter),
       });
     },
 
@@ -267,7 +282,7 @@ export const useEncounterStore = create<EncounterStore>()(
       set({
         encounter: newEncounter,
         past: newPast,
-        recommendedActionIds: computeRecommended(newEncounter),
+        recommendedActions: computeRecommended(newEncounter),
       });
     },
 
@@ -463,7 +478,7 @@ export const useEncounterStore = create<EncounterStore>()(
       set({
         encounter: newEncounter,
         past: newPast,
-        recommendedActionIds: computeRecommended(newEncounter),
+        recommendedActions: computeRecommended(newEncounter),
       });
     },
 
@@ -486,7 +501,7 @@ export const useEncounterStore = create<EncounterStore>()(
       set({
         encounter: previous,
         past: past.slice(0, -1),
-        recommendedActionIds: computeRecommended(previous),
+        recommendedActions: computeRecommended(previous),
       });
     },
   })),

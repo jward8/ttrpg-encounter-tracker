@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import type {
-  Combatant, CombatantType, DamageType, RangeHint,
+  Archetype, Combatant, CombatantType, DamageType, RangeHint,
 } from '../../fileSystem/schema';
+import { suggestArchetype } from '../../engine/archetypes';
+import ArchetypeSelector from '../tactics/ArchetypeSelector';
 
 const DAMAGE_TYPES: DamageType[] = [
   'acid', 'bludgeoning', 'cold', 'fire', 'force',
@@ -32,6 +34,7 @@ interface FormState {
   speed: string;
   initiative_modifier: string;
   notes: string;
+  archetype: Archetype;
   resistances: DamageType[];
   immunities: DamageType[];
   vulnerabilities: DamageType[];
@@ -60,6 +63,7 @@ export default function CombatantForm({ onSubmit, onCancel }: Props) {
     speed: '30',
     initiative_modifier: '0',
     notes: '',
+    archetype: null,
     resistances: [],
     immunities: [],
     vulnerabilities: [],
@@ -90,6 +94,26 @@ export default function CombatantForm({ onSubmit, onCancel }: Props) {
       ...prev,
       actionRows: prev.actionRows.map(r => r.id === id ? { ...r, ...patch } : r),
     }));
+  }
+
+  function handleSuggest() {
+    const maxHp = parseInt(form.max_hp) || 0;
+    const actionRows = form.actionRows.filter(r => r.category === 'action');
+    const partial = {
+      legendary_actions_max: 0,
+      current_hp: maxHp,
+      max_hp: maxHp,
+      actions: actionRows.map(r => ({
+        id: r.id,
+        name: r.name,
+        action_category: 'action' as const,
+        range_hint: r.range_hint,
+        damage: r.damage || undefined,
+        available: true,
+      })),
+      bonus_actions: [],
+    } as unknown as Combatant;
+    set('archetype', suggestArchetype(partial));
   }
 
   function handleSubmit() {
@@ -127,7 +151,7 @@ export default function CombatantForm({ onSubmit, onCancel }: Props) {
       vulnerabilities: form.vulnerabilities,
       legendary_actions_max: 0,
       legendary_actions_remaining: 0,
-      archetype: null,
+      archetype: form.archetype,
       notes: form.notes,
     };
     onSubmit(combatant);
@@ -221,6 +245,26 @@ export default function CombatantForm({ onSubmit, onCancel }: Props) {
           value={form.notes}
           onChange={e => set('notes', e.target.value)}
         />
+      </div>
+
+      {/* Archetype */}
+      <div>
+        <label className={labelCls}>Archetype</label>
+        <div className="flex items-start gap-2">
+          <div className="flex-1">
+            <ArchetypeSelector
+              value={form.archetype}
+              onChange={a => set('archetype', a)}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleSuggest}
+            className="text-xs px-2.5 py-1.5 rounded border border-stone-600 text-stone-400 hover:text-stone-200 hover:border-stone-500 transition-colors shrink-0"
+          >
+            Suggest
+          </button>
+        </div>
       </div>
 
       {/* Damage traits */}

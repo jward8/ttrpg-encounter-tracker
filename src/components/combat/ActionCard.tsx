@@ -4,6 +4,7 @@ interface ActionCardProps {
   action: CombatantAction;
   isRecommended: boolean;
   recommendationReason?: string;
+  confidence?: 'high' | 'medium' | 'low';
   onClick?: () => void;
 }
 
@@ -30,11 +31,13 @@ function formatActionStats(action: CombatantAction): string {
   return parts.join(' · ') || '—';
 }
 
-export default function ActionCard({ action, isRecommended, recommendationReason, onClick }: ActionCardProps) {
+export default function ActionCard({ action, isRecommended, recommendationReason, confidence, onClick }: ActionCardProps) {
   const isUnavailable = !action.available;
 
   const borderClass = isUnavailable
     ? 'border border-stone-700'
+    : isRecommended && confidence === 'medium'
+    ? 'border-2 border-dashed border-amber-400'
     : isRecommended
     ? 'border-2 border-amber-400'
     : 'border border-stone-700';

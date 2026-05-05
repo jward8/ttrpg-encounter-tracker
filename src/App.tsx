@@ -16,7 +16,7 @@ export default function App() {
   const encounter = useEncounterStore(s => s.encounter);
   const past = useEncounterStore(s => s.past);
   const dirHandle = useEncounterStore(s => s.dirHandle);
-  const recommendedActionIds = useEncounterStore(s => s.recommendedActionIds);
+  const recommendedActions = useEncounterStore(s => s.recommendedActions);
 
   const campaign = useCampaignStore(s => s.campaign);
 
@@ -31,6 +31,7 @@ export default function App() {
   const applyCondition = useEncounterStore(s => s.applyCondition);
   const removeCondition = useEncounterStore(s => s.removeCondition);
   const commitAction = useEncounterStore(s => s.commitAction);
+  const setCombatantArchetype = useEncounterStore(s => s.setCombatantArchetype);
 
   const createCampaign = useCampaignStore(s => s.createCampaign);
 
@@ -161,6 +162,18 @@ export default function App() {
         {isActiveCombat && (
           <span className="text-stone-500 text-sm">Round {encounter.current_round}</span>
         )}
+        {isActiveCombat && (
+          <button
+            onClick={() => updateEncounterMeta(encounter.name, encounter.campaign_id, !encounter.tactics_enabled)}
+            className={`text-xs px-2 py-1 rounded border transition-colors ${
+              encounter.tactics_enabled
+                ? 'border-amber-600 text-amber-400 hover:border-amber-500'
+                : 'border-stone-700 text-stone-500 hover:text-stone-300 hover:border-stone-500'
+            }`}
+          >
+            Tactics {encounter.tactics_enabled ? 'ON' : 'OFF'}
+          </button>
+        )}
 
         <div className="flex items-center gap-2 ml-auto">
           <span className={`text-[10px] uppercase tracking-wider ${saveLabelColor}`}>
@@ -284,7 +297,7 @@ export default function App() {
                     <ActionPanel
                       combatant={displayCombatant}
                       currentRound={encounter.current_round}
-                      recommendedActionIds={isViewingActive ? recommendedActionIds : []}
+                      recommendedActions={isViewingActive ? recommendedActions : []}
                       onActionClick={
                         isViewingActive && activeCombatant
                           ? (action: CombatantAction) =>
@@ -320,6 +333,11 @@ export default function App() {
                       onRemoveCondition={
                         isViewingActive && activeCombatant
                           ? (i: number) => removeCondition(activeCombatant.id, i)
+                          : undefined
+                      }
+                      onSetArchetype={
+                        isViewingActive && activeCombatant
+                          ? (archetype) => setCombatantArchetype(activeCombatant.id, archetype)
                           : undefined
                       }
                     />

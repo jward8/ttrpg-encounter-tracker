@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import type { Combatant, CombatantAction, DamageType, SrdCondition } from '../../fileSystem/schema';
-import { ARCHETYPES } from '../../engine/archetypes';
-import { getRangeReason } from '../../engine/tacticEngine';
+import type { Archetype, Combatant, CombatantAction, DamageType, SrdCondition } from '../../fileSystem/schema';
+import type { RecommendedAction } from '../../engine/tacticEngine';
+import { suggestArchetype } from '../../engine/archetypes';
 import ActionCard from './ActionCard';
 import HpTracker from './HpTracker';
 import ResourceTracker from './ResourceTracker';
 import ConditionBadge from './ConditionBadge';
+import ArchetypeBadge from '../tactics/ArchetypeBadge';
+import ArchetypeSelector from '../tactics/ArchetypeSelector';
 
 const SRD_CONDITIONS: SrdCondition[] = [
   'blinded', 'charmed', 'deafened', 'exhaustion', 'frightened',
@@ -16,7 +18,7 @@ const SRD_CONDITIONS: SrdCondition[] = [
 interface ActionPanelProps {
   combatant: Combatant;
   currentRound: number;
-  recommendedActionIds: string[];
+  recommendedActions: RecommendedAction[];
   onActionClick?: (action: CombatantAction) => void;
   onDamage?: (amount: number, damageType: DamageType) => void;
   onHeal?: (amount: number) => void;
@@ -24,6 +26,7 @@ interface ActionPanelProps {
   onReactionUse?: () => void;
   onApplyCondition?: (condition: string) => void;
   onRemoveCondition?: (index: number) => void;
+  onSetArchetype?: (archetype: Archetype) => void;
 }
 
 const TYPE_BADGE: Record<string, string> = {
@@ -38,21 +41,11 @@ const TYPE_LABEL: Record<string, string> = {
   enemy_npc: 'ENEMY',
 };
 
-const ARCHETYPE_COLORS: Record<string, string> = {
-  boss: 'bg-red-900 text-red-200 border border-red-700',
-  brute: 'bg-orange-900 text-orange-200 border border-orange-700',
-  glass_cannon: 'bg-purple-900 text-purple-200 border border-purple-700',
-  skirmisher: 'bg-sky-900 text-sky-200 border border-sky-700',
-  controller: 'bg-indigo-900 text-indigo-200 border border-indigo-700',
-  support: 'bg-emerald-900 text-emerald-200 border border-emerald-700',
-  protector: 'bg-blue-900 text-blue-200 border border-blue-700',
-  survivor: 'bg-yellow-900 text-yellow-200 border border-yellow-700',
-};
 
 export default function ActionPanel({
   combatant,
   currentRound,
-  recommendedActionIds,
+  recommendedActions,
   onActionClick,
   onDamage,
   onHeal,
@@ -60,13 +53,11 @@ export default function ActionPanel({
   onReactionUse,
   onApplyCondition,
   onRemoveCondition,
+  onSetArchetype,
 }: ActionPanelProps) {
   const [selectedCondition, setSelectedCondition] = useState<SrdCondition>('blinded');
 
-  const archetypeLabel = combatant.archetype ? ARCHETYPES[combatant.archetype].label : null;
-  const archetypeColor = combatant.archetype
-    ? (ARCHETYPE_COLORS[combatant.archetype] ?? 'bg-stone-700 text-stone-200 border border-stone-600')
-    : null;
+  const suggested = suggestArchetype(combatant);
 
   const reactionAvailable =
     combatant.reactions.length > 0 && combatant.reactions[0].available;
@@ -76,17 +67,19 @@ export default function ActionPanel({
   function renderActionList(actions: CombatantAction[]) {
     return (
       <div className="flex flex-col gap-2">
-        {actions.map(action => (
-          <ActionCard
-            key={action.id}
-            action={action}
-            isRecommended={recommendedActionIds.includes(action.id)}
-            recommendationReason={
-              recommendedActionIds.includes(action.id) ? getRangeReason(action) : undefined
-            }
-            onClick={onActionClick && action.available ? () => onActionClick(action) : undefined}
-          />
-        ))}
+        {actions.map(action => {
+          const rec = recommendedActions.find(r => r.action.id === action.id);
+          return (
+            <ActionCard
+              key={action.id}
+              action={action}
+              isRecommended={!!rec}
+              recommendationReason={rec?.reason}
+              confidence={rec?.confidence}
+              onClick={onActionClick && action.available ? () => onActionClick(action) : undefined}
+            />
+          );
+        })}
       </div>
     );
   }
@@ -100,13 +93,18 @@ export default function ActionPanel({
           <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${TYPE_BADGE[combatant.type]}`}>
             {TYPE_LABEL[combatant.type]}
           </span>
-          {archetypeLabel && archetypeColor && (
-            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${archetypeColor}`}>
-              {archetypeLabel}
-            </span>
-          )}
+          {!onSetArchetype && <ArchetypeBadge archetype={combatant.archetype} size="sm" />}
         </div>
         <p className="text-sm text-stone-400 mt-0.5">Round {currentRound}</p>
+        {onSetArchetype && (
+          <div className="mt-2 max-w-xs">
+            <ArchetypeSelector
+              value={combatant.archetype}
+              onChange={onSetArchetype}
+              suggestedArchetype={suggested}
+            />
+          </div>
+        )}
       </div>
 
       {/* HP */}
