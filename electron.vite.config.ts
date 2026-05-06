@@ -5,11 +5,19 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
-    entry: 'electron/main.ts',
+    build: {
+      lib: {
+        entry: 'electron/main.ts',
+      },
+    },
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
-    entry: 'electron/preload.ts',
+    build: {
+      lib: {
+        entry: 'electron/preload.ts',
+      },
+    },
   },
   renderer: {
     plugins: [react(), tailwindcss()],
