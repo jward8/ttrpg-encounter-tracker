@@ -332,7 +332,44 @@ export default function PlayerCharacterForm({ initial, onSubmit, onCancel }: Pro
         </div>
       ))}
 
-      {/* Continued in Task 8c */}
+      {/* Actions */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className={labelCls + ' mb-0'}>Actions</label>
+          <button type="button" onClick={addRow} className="text-xs text-amber-400 hover:text-amber-300">
+            + Add Action
+          </button>
+        </div>
+        {form.actionRows.length === 0 && (
+          <p className="text-xs text-stone-600 italic">No actions added.</p>
+        )}
+        <div className="space-y-2">
+          {form.actionRows.map(row => (
+            <div key={row.id} className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-2 items-center">
+              <input className={inputCls} placeholder="Action name" value={row.name} onChange={e => updateRow(row.id, { name: e.target.value })} />
+              <select className={inputCls} value={row.category} onChange={e => updateRow(row.id, { category: e.target.value as ActionCategory })}>
+                <option value="action">Action</option>
+                <option value="bonus_action">Bonus</option>
+                <option value="reaction">Reaction</option>
+              </select>
+              <input className={`${inputCls} w-20`} placeholder="Damage" value={row.damage} onChange={e => updateRow(row.id, { damage: e.target.value })} />
+              <select className={inputCls} value={row.range_hint} onChange={e => updateRow(row.id, { range_hint: e.target.value as RangeHint })}>
+                {RANGE_HINTS.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <input className={`${inputCls} w-16`} type="number" min={1} placeholder="Uses" value={row.uses_max} onChange={e => updateRow(row.id, { uses_max: e.target.value })} />
+              <button type="button" onClick={() => removeRow(row.id)} className="text-stone-500 hover:text-red-400 text-sm">×</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label className={labelCls}>Notes</label>
+        <textarea className={`${inputCls} resize-none`} rows={2} value={form.notes} onChange={e => set('notes', e.target.value)} />
+      </div>
+
+
       <div className="flex justify-end gap-2 pt-2 border-t border-stone-700">
         <button type="button" onClick={onCancel} className="text-xs px-3 py-1.5 rounded border border-stone-600 text-stone-400 hover:text-stone-200 hover:border-stone-500 transition-colors">
           Cancel
