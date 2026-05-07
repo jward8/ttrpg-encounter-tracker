@@ -16,10 +16,18 @@ export default defineConfig({
     build: {
       lib: {
         entry: 'electron/preload.ts',
+        formats: ['cjs'],
+        fileName: () => 'preload.js',
       },
     },
   },
   renderer: {
+    root: '.',
+    build: {
+      rollupOptions: {
+        input: 'index.html',
+      },
+    },
     plugins: [react(), tailwindcss()],
   },
 })

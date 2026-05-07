@@ -1,7 +1,9 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
-import { autoUpdater } from 'electron-updater'
+import electronUpdater from 'electron-updater'
+
+const { autoUpdater } = electronUpdater
 import * as fileHandlers from './fileHandlers'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
@@ -11,7 +13,7 @@ function createWindow(): void {
     width: 1280,
     height: 800,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
     },
