@@ -1,40 +1,44 @@
-import { Encounter } from './schema';
-
-export async function loadLatestEncounter(
-  dirHandle: FileSystemDirectoryHandle,
-  campaignId: string,
-): Promise<Encounter | null> {
-  try {
-    const campaignDir = await dirHandle.getDirectoryHandle(campaignId);
-    const encounterDir = await campaignDir.getDirectoryHandle('encounters');
-    let latest: Encounter | null = null;
-    for await (const entry of encounterDir.values()) {
-      if (entry.kind !== 'file' || !entry.name.endsWith('.json')) continue;
-      const file = await (entry as FileSystemFileHandle).getFile();
-      const text = await file.text();
-      const enc = JSON.parse(text) as Encounter;
-      if (!latest || enc.updated_at > latest.updated_at) latest = enc;
-    }
-    return latest;
-  } catch {
-    return null;
-  }
-}
+import { Encounter } from './schema'
 
 export async function saveEncounter(
   encounter: Encounter,
-  dirHandle: FileSystemDirectoryHandle
+  rootPath: string,
 ): Promise<void> {
-  const campaignDir = await dirHandle.getDirectoryHandle(encounter.campaign_id, { create: true });
-  const encounterDir = await campaignDir.getDirectoryHandle('encounters', { create: true });
-  const fileHandle = await encounterDir.getFileHandle(`${encounter.id}.json`, { create: true });
-  const writable = await fileHandle.createWritable();
-  await writable.write(JSON.stringify(encounter, null, 2));
-  await writable.close();
+  const dir = `${rootPath}/${encounter.campaign_id}/encounters`
+  await window.electronAPI.ensureDir(dir)
+  await window.electronAPI.writeFile(
+    `${dir}/${encounter.id}.json`,
+    JSON.stringify(encounter, null, 2),
+  )
 }
 
-export async function loadEncounter(fileHandle: FileSystemFileHandle): Promise<Encounter> {
-  const file = await fileHandle.getFile();
-  const text = await file.text();
-  return JSON.parse(text) as Encounter;
+export async function loadEncounter(
+  rootPath: string,
+  campaignId: string,
+  encounterId: string,
+): Promise<Encounter> {
+  const content = await window.electronAPI.readFile(
+    `${rootPath}/${campaignId}/encounters/${encounterId}.json`,
+  )
+  return JSON.parse(content) as Encounter
+}
+
+export async function loadLatestEncounter(
+  rootPath: string,
+  campaignId: string,
+): Promise<Encounter | null> {
+  const dir = `${rootPath}/${campaignId}/encounters`
+  const dirExists = await window.electronAPI.fileExists(dir)
+  if (!dirExists) return null
+
+  const files = await window.electronAPI.listFiles(dir)
+  const jsonFiles = files.filter((f) => f.endsWith('.json'))
+
+  let latest: Encounter | null = null
+  for (const fileName of jsonFiles) {
+    const content = await window.electronAPI.readFile(`${dir}/${fileName}`)
+    const enc = JSON.parse(content) as Encounter
+    if (!latest || enc.updated_at > latest.updated_at) latest = enc
+  }
+  return latest
 }
