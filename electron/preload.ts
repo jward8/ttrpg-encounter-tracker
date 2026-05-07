@@ -1,6 +1,8 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  platform: process.platform,
+
   selectFolder: (): Promise<string | null> =>
     ipcRenderer.invoke('select-folder'),
 
@@ -18,4 +20,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   fileExists: (filePath: string): Promise<boolean> =>
     ipcRenderer.invoke('file-exists', filePath),
+
+  minimizeWindow: (): Promise<void> => ipcRenderer.invoke('window-minimize'),
+
+  toggleMaximizeWindow: (): Promise<void> =>
+    ipcRenderer.invoke('window-maximize-toggle'),
+
+  closeWindow: (): Promise<void> => ipcRenderer.invoke('window-close'),
+
+  isWindowMaximized: (): Promise<boolean> =>
+    ipcRenderer.invoke('window-is-maximized'),
+
+  onMaximizedChanged: (cb: (isMaximized: boolean) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, isMaximized: boolean) =>
+      cb(isMaximized)
+    ipcRenderer.on('window-maximized-changed', listener)
+    return () => ipcRenderer.removeListener('window-maximized-changed', listener)
+  },
 })

@@ -9,8 +9,12 @@ import CombatLog from './components/combat/CombatLog';
 import LogEntryModal from './components/combat/LogEntryModal';
 import EncounterSetup from './components/encounter/EncounterSetup';
 import InitiativeInput from './components/encounter/InitiativeInput';
+import WindowControls from './components/WindowControls';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+const isMac = window.electronAPI.platform === 'darwin';
+const showCustomChrome = !isMac;
 
 export default function App() {
   const encounter = useEncounterStore(s => s.encounter);
@@ -155,7 +159,11 @@ export default function App() {
   return (
     <div className="h-screen bg-stone-950 text-stone-100 flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="h-12 bg-stone-900 border-b border-stone-700 flex items-center px-4 gap-3 shrink-0">
+      <header
+        className={`drag-region h-12 bg-stone-900 border-b border-stone-700 flex items-center gap-3 shrink-0 ${
+          isMac ? 'pl-20' : 'pl-4'
+        } ${showCustomChrome ? '' : 'pr-4'}`}
+      >
         <h1 className="text-sm font-semibold uppercase tracking-widest text-amber-400">
           {isActiveCombat ? encounter.name : 'TTRPG Tracker'}
         </h1>
@@ -165,7 +173,7 @@ export default function App() {
         {isActiveCombat && (
           <button
             onClick={() => updateEncounterMeta(encounter.name, encounter.campaign_id, !encounter.tactics_enabled)}
-            className={`text-xs px-2 py-1 rounded border transition-colors ${
+            className={`no-drag text-xs px-2 py-1 rounded border transition-colors ${
               encounter.tactics_enabled
                 ? 'border-amber-600 text-amber-400 hover:border-amber-500'
                 : 'border-stone-700 text-stone-500 hover:text-stone-300 hover:border-stone-500'
@@ -175,7 +183,7 @@ export default function App() {
           </button>
         )}
 
-        <div className="flex items-center gap-2 ml-auto">
+        <div className={`flex items-center gap-2 ml-auto ${showCustomChrome ? 'pr-0' : ''}`}>
           <span className={`text-[10px] uppercase tracking-wider ${saveLabelColor}`}>
             {saveLabel}
           </span>
@@ -184,19 +192,20 @@ export default function App() {
               <button
                 onClick={undoLastAction}
                 disabled={past.length === 0}
-                className="text-xs px-2 py-1 rounded border border-stone-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-stone-400 hover:text-stone-200 hover:border-stone-500"
+                className="no-drag text-xs px-2 py-1 rounded border border-stone-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-stone-400 hover:text-stone-200 hover:border-stone-500"
               >
                 Undo
               </button>
               <button
                 onClick={advanceTurn}
-                className="text-xs bg-amber-600 hover:bg-amber-500 text-white font-semibold px-3 py-1.5 rounded transition-colors"
+                className="no-drag text-xs bg-amber-600 hover:bg-amber-500 text-white font-semibold px-3 py-1.5 rounded transition-colors"
               >
                 End Turn
               </button>
             </>
           )}
         </div>
+        {showCustomChrome && <WindowControls />}
       </header>
 
       {/* Body routing */}
