@@ -244,7 +244,95 @@ export default function PlayerCharacterForm({ initial, onSubmit, onCancel }: Pro
         </div>
       </div>
 
-      {/* Continued in Task 8b */}
+      {/* Combat stats */}
+      <div className="grid grid-cols-4 gap-3">
+        <div>
+          <label className={labelCls}>AC *</label>
+          <input className={inputCls} type="number" min={1} value={form.ac} onChange={e => set('ac', e.target.value)} />
+        </div>
+        <div>
+          <label className={labelCls}>Max HP *</label>
+          <input className={inputCls} type="number" min={1} value={form.max_hp} onChange={e => set('max_hp', e.target.value)} />
+        </div>
+        <div>
+          <label className={labelCls}>Current HP</label>
+          <input className={inputCls} type="number" min={0} value={form.current_hp} onChange={e => set('current_hp', e.target.value)} />
+        </div>
+        <div>
+          <label className={labelCls}>Temp HP</label>
+          <input className={inputCls} type="number" min={0} value={form.temp_hp} onChange={e => set('temp_hp', e.target.value)} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-3">
+        <div>
+          <label className={labelCls}>Speed</label>
+          <input className={inputCls} type="number" min={0} value={form.speed} onChange={e => set('speed', e.target.value)} />
+        </div>
+        <div>
+          <label className={labelCls}>Init Mod</label>
+          <input className={inputCls} type="number" value={form.initiative_modifier} onChange={e => set('initiative_modifier', e.target.value)} />
+        </div>
+        <div>
+          <label className={labelCls}>Prof Bonus</label>
+          <input className={inputCls} type="number" min={2} max={6} value={form.proficiency_bonus} onChange={e => set('proficiency_bonus', e.target.value)} />
+        </div>
+        <div>
+          <label className={labelCls}>Passive Perception</label>
+          <input className={inputCls} type="number" min={1} value={form.passive_perception} onChange={e => set('passive_perception', e.target.value)} />
+        </div>
+      </div>
+
+      {/* Ability scores */}
+      <div>
+        <label className={labelCls}>Ability Scores</label>
+        <div className="grid grid-cols-6 gap-2">
+          {ABILITY_NAMES.map(name => (
+            <div key={name}>
+              <div className="text-[10px] uppercase text-stone-500 mb-0.5 text-center">{name.slice(0, 3)}</div>
+              <input
+                className={`${inputCls} text-center`}
+                type="number"
+                min={1}
+                max={30}
+                value={form.ability_scores[name]}
+                onChange={e => setAbility(name, e.target.value)}
+              />
+              <label className="flex items-center justify-center gap-1 mt-1 text-[10px] text-stone-400 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.save_proficiencies.includes(name)}
+                  onChange={() => toggleSave(name)}
+                  className="accent-amber-500"
+                />
+                save
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Damage traits */}
+      {(['resistances', 'immunities', 'vulnerabilities'] as const).map(trait => (
+        <div key={trait}>
+          <label className={labelCls}>{trait.charAt(0).toUpperCase() + trait.slice(1)}</label>
+          <div className="flex flex-wrap gap-x-3 gap-y-1">
+            {DAMAGE_TYPES.map(dt => (
+              <label key={dt} className="flex items-center gap-1 text-xs text-stone-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form[trait].includes(dt)}
+                  onChange={() => toggleDamageType(trait, dt)}
+                  className="accent-amber-500"
+                />
+                {dt}
+              </label>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {/* Continued in Task 8c */}
       <div className="flex justify-end gap-2 pt-2 border-t border-stone-700">
         <button type="button" onClick={onCancel} className="text-xs px-3 py-1.5 rounded border border-stone-600 text-stone-400 hover:text-stone-200 hover:border-stone-500 transition-colors">
           Cancel
