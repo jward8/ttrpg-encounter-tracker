@@ -1,29 +1,68 @@
-import { useState } from 'react';
+import { useState } from 'react'
+import type { Encounter } from '../fileSystem/schema'
+import type { Campaign } from '../fileSystem/schema'
+import {
+  saveEncounter as saveEncounterIO,
+  loadEncounter as loadEncounterIO,
+  loadLatestEncounter as loadLatestEncounterIO,
+} from '../fileSystem/encounterIO'
+import {
+  saveCampaign as saveCampaignIO,
+  loadCampaign as loadCampaignIO,
+} from '../fileSystem/campaignIO'
 
-declare global {
-  interface Window {
-    showDirectoryPicker(): Promise<FileSystemDirectoryHandle>;
-  }
-}
-import { Encounter } from '../fileSystem/schema';
-import { saveEncounter as saveEncounterIO, loadEncounter as loadEncounterIO } from '../fileSystem/encounterIO';
+const ROOT_PATH_KEY = 'ttrpg-root-path'
 
 export function useFileSystem() {
-  const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(null);
+  const [rootPath, setRootPath] = useState<string | null>(
+    () => localStorage.getItem(ROOT_PATH_KEY),
+  )
 
   async function openDirectory(): Promise<void> {
-    const handle = await window.showDirectoryPicker();
-    setDirHandle(handle);
+    const selected = await window.electronAPI.selectFolder()
+    if (selected) {
+      localStorage.setItem(ROOT_PATH_KEY, selected)
+      setRootPath(selected)
+    }
   }
 
   async function saveEncounter(encounter: Encounter): Promise<void> {
-    if (!dirHandle) throw new Error('No directory selected. Call openDirectory() first.');
-    await saveEncounterIO(encounter, dirHandle);
+    if (!rootPath) throw new Error('No directory selected. Call openDirectory() first.')
+    await saveEncounterIO(encounter, rootPath)
   }
 
-  async function loadEncounter(fileHandle: FileSystemFileHandle): Promise<Encounter> {
-    return loadEncounterIO(fileHandle);
+  async function loadEncounter(
+    campaignId: string,
+    encounterId: string,
+  ): Promise<Encounter> {
+    if (!rootPath) throw new Error('No directory selected. Call openDirectory() first.')
+    return loadEncounterIO(rootPath, campaignId, encounterId)
   }
 
-  return { dirHandle, openDirectory, saveEncounter, loadEncounter };
+  async function loadLatestEncounter(
+    campaignId: string,
+  ): Promise<Encounter | null> {
+    if (!rootPath) return null
+    return loadLatestEncounterIO(rootPath, campaignId)
+  }
+
+  async function saveCampaign(campaign: Campaign): Promise<void> {
+    if (!rootPath) throw new Error('No directory selected. Call openDirectory() first.')
+    await saveCampaignIO(campaign, rootPath)
+  }
+
+  async function loadCampaign(campaignId: string): Promise<Campaign | null> {
+    if (!rootPath) return null
+    return loadCampaignIO(rootPath, campaignId)
+  }
+
+  return {
+    rootPath,
+    openDirectory,
+    saveEncounter,
+    loadEncounter,
+    loadLatestEncounter,
+    saveCampaign,
+    loadCampaign,
+  }
 }

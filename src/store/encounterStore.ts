@@ -10,6 +10,7 @@ import { loadLatestEncounter } from '../fileSystem/encounterIO';
 import { useCampaignStore } from './campaignStore';
 
 const MAX_UNDO = 20;
+const ROOT_PATH_KEY = 'ttrpg-root-path';
 
 const INITIAL_ENCOUNTER: Encounter = {
   id: crypto.randomUUID(),
@@ -37,7 +38,7 @@ export interface CommitActionPayload {
 interface EncounterStore {
   encounter: Encounter;
   past: Encounter[];
-  dirHandle: FileSystemDirectoryHandle | null;
+  rootPath: string | null;
   recommendedActions: RecommendedAction[];
 
   openDirectory: () => Promise<void>;
@@ -111,16 +112,18 @@ export const useEncounterStore = create<EncounterStore>()(
   subscribeWithSelector((set, get) => ({
     encounter: INITIAL_ENCOUNTER,
     past: [],
-    dirHandle: null,
+    rootPath: null,
     recommendedActions: [],
 
     openDirectory: async () => {
-      const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
-      set({ dirHandle: handle });
-      await useCampaignStore.getState().loadCampaignFromDir(handle);
+      const selected = await window.electronAPI.selectFolder();
+      if (!selected) return;
+      localStorage.setItem(ROOT_PATH_KEY, selected);
+      set({ rootPath: selected });
+      await useCampaignStore.getState().loadFromRoot(selected);
       const campaign = useCampaignStore.getState().campaign;
       if (campaign) {
-        const resumed = await loadLatestEncounter(handle, campaign.id);
+        const resumed = await loadLatestEncounter(selected, campaign.id);
         if (resumed) {
           set({ encounter: resumed, past: [], recommendedActions: computeRecommended(resumed) });
         } else {
