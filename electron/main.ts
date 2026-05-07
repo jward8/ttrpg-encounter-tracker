@@ -1,6 +1,7 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
+import * as fileHandlers from './fileHandlers'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
@@ -22,7 +23,35 @@ function createWindow(): void {
   }
 }
 
+function registerIpcHandlers(): void {
+  ipcMain.handle('select-folder', async () => {
+    const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
+    return result.canceled ? null : result.filePaths[0]
+  })
+
+  ipcMain.handle('read-file', (_event, filePath: string) =>
+    fileHandlers.readFile(filePath),
+  )
+
+  ipcMain.handle('write-file', (_event, filePath: string, content: string) =>
+    fileHandlers.writeFile(filePath, content),
+  )
+
+  ipcMain.handle('ensure-dir', (_event, dirPath: string) =>
+    fileHandlers.ensureDir(dirPath),
+  )
+
+  ipcMain.handle('list-files', (_event, dirPath: string) =>
+    fileHandlers.listFiles(dirPath),
+  )
+
+  ipcMain.handle('file-exists', (_event, filePath: string) =>
+    fileHandlers.fileExists(filePath),
+  )
+}
+
 app.whenReady().then(() => {
+  registerIpcHandlers()
   createWindow()
 
   app.on('activate', () => {
