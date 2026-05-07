@@ -15,7 +15,7 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 export default function App() {
   const encounter = useEncounterStore(s => s.encounter);
   const past = useEncounterStore(s => s.past);
-  const dirHandle = useEncounterStore(s => s.dirHandle);
+  const rootPath = useEncounterStore(s => s.rootPath);
   const recommendedActions = useEncounterStore(s => s.recommendedActions);
 
   const campaign = useCampaignStore(s => s.campaign);
@@ -48,15 +48,15 @@ export default function App() {
     const unsub = useEncounterStore.subscribe(
       s => s.encounter,
       enc => {
-        const { dirHandle: dh } = useEncounterStore.getState();
-        if (!dh || !enc.campaign_id) return;
+        const { rootPath: rp } = useEncounterStore.getState();
+        if (!rp || !enc.campaign_id) return;
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         setSaveStatus('saving');
         saveTimeoutRef.current = setTimeout(async () => {
-          const { dirHandle: currentDh } = useEncounterStore.getState();
-          if (!currentDh) { setSaveStatus('idle'); return; }
+          const { rootPath: currentRoot } = useEncounterStore.getState();
+          if (!currentRoot) { setSaveStatus('idle'); return; }
           try {
-            await saveEncounter(enc, currentDh);
+            await saveEncounter(enc, currentRoot);
             setSaveStatus('saved');
           } catch {
             setSaveStatus('error');
@@ -75,14 +75,14 @@ export default function App() {
     const unsub = useCampaignStore.subscribe(
       s => s.campaign,
       camp => {
-        const dh = useEncounterStore.getState().dirHandle;
-        if (!camp || !dh) return;
+        const rp = useEncounterStore.getState().rootPath;
+        if (!camp || !rp) return;
         if (campaignSaveTimeoutRef.current) clearTimeout(campaignSaveTimeoutRef.current);
         campaignSaveTimeoutRef.current = setTimeout(async () => {
-          const currentDh = useEncounterStore.getState().dirHandle;
-          if (!currentDh) return;
+          const currentRoot = useEncounterStore.getState().rootPath;
+          if (!currentRoot) return;
           try {
-            await useCampaignStore.getState().saveCampaign(currentDh);
+            await useCampaignStore.getState().saveCampaign(currentRoot);
           } catch {}
         }, 500);
       },
@@ -94,8 +94,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!dirHandle) setSaveStatus('idle');
-  }, [dirHandle]);
+    if (!rootPath) setSaveStatus('idle');
+  }, [rootPath]);
 
   const isActiveCombat = encounter.status === 'active' || encounter.status === 'paused';
 
@@ -122,8 +122,8 @@ export default function App() {
     createCampaign(name);
     try {
       await openDirectory();
-      const dh = useEncounterStore.getState().dirHandle;
-      if (dh) await useCampaignStore.getState().saveCampaign(dh);
+      const rp = useEncounterStore.getState().rootPath;
+      if (rp) await useCampaignStore.getState().saveCampaign(rp);
     } catch {}
     setCampaignNameInput('');
   }
@@ -134,7 +134,7 @@ export default function App() {
     createCampaign(name);
     const newCampaign = useCampaignStore.getState().campaign!;
     updateEncounterMeta(encounter.name, newCampaign.id, encounter.tactics_enabled);
-    if (dirHandle) await useCampaignStore.getState().saveCampaign(dirHandle);
+    if (rootPath) await useCampaignStore.getState().saveCampaign(rootPath);
     setCampaignNameInput('');
   }
 
@@ -200,7 +200,7 @@ export default function App() {
       </header>
 
       {/* Body routing */}
-      {!dirHandle ? (
+      {!rootPath ? (
         /* Landing — no folder open */
         <div className="flex-1 flex flex-col items-center justify-center gap-8 p-8">
           <div className="text-center space-y-2">

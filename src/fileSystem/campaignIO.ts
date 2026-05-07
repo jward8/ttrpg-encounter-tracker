@@ -1,27 +1,24 @@
-import type { Campaign } from './schema';
+import type { Campaign } from './schema'
 
 export async function saveCampaign(
   campaign: Campaign,
-  dirHandle: FileSystemDirectoryHandle,
+  rootPath: string,
 ): Promise<void> {
-  const campaignDir = await dirHandle.getDirectoryHandle(campaign.id, { create: true });
-  const fileHandle = await campaignDir.getFileHandle('campaign.json', { create: true });
-  const writable = await fileHandle.createWritable();
-  await writable.write(JSON.stringify(campaign, null, 2));
-  await writable.close();
+  const dir = `${rootPath}/${campaign.id}`
+  await window.electronAPI.ensureDir(dir)
+  await window.electronAPI.writeFile(
+    `${dir}/campaign.json`,
+    JSON.stringify(campaign, null, 2),
+  )
 }
 
-export async function loadCampaignFromDir(
-  dirHandle: FileSystemDirectoryHandle,
+export async function loadCampaign(
+  rootPath: string,
   campaignId: string,
 ): Promise<Campaign | null> {
-  try {
-    const campaignDir = await dirHandle.getDirectoryHandle(campaignId);
-    const fileHandle = await campaignDir.getFileHandle('campaign.json');
-    const file = await fileHandle.getFile();
-    const text = await file.text();
-    return JSON.parse(text) as Campaign;
-  } catch {
-    return null;
-  }
+  const filePath = `${rootPath}/${campaignId}/campaign.json`
+  const exists = await window.electronAPI.fileExists(filePath)
+  if (!exists) return null
+  const content = await window.electronAPI.readFile(filePath)
+  return JSON.parse(content) as Campaign
 }

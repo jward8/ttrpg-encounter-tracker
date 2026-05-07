@@ -1,16 +1,19 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { Campaign, PlayerCharacter } from '../fileSystem/schema';
-import { saveCampaign as saveCampaignIO } from '../fileSystem/campaignIO';
+import {
+  saveCampaign as saveCampaignIO,
+  loadCampaign as loadCampaignIO,
+} from '../fileSystem/campaignIO';
 
 interface CampaignStore {
   campaign: Campaign | null;
   createCampaign: (name: string) => void;
-  loadCampaignFromDir: (dirHandle: FileSystemDirectoryHandle) => Promise<void>;
+  loadFromRoot: (rootPath: string) => Promise<void>;
   addPlayerCharacter: (pc: PlayerCharacter) => void;
   updatePlayerCharacter: (id: string, updates: Partial<PlayerCharacter>) => void;
   removePlayerCharacter: (id: string) => void;
-  saveCampaign: (dirHandle: FileSystemDirectoryHandle) => Promise<void>;
+  saveCampaign: (rootPath: string) => Promise<void>;
 }
 
 export const useCampaignStore = create<CampaignStore>()(
@@ -30,19 +33,13 @@ export const useCampaignStore = create<CampaignStore>()(
       });
     },
 
-    loadCampaignFromDir: async (dirHandle: FileSystemDirectoryHandle) => {
-      for await (const entry of dirHandle.values()) {
-        if (entry.kind !== 'directory') continue;
-        try {
-          const subDir = entry as FileSystemDirectoryHandle;
-          const fileHandle = await subDir.getFileHandle('campaign.json');
-          const file = await fileHandle.getFile();
-          const text = await file.text();
-          const campaign = JSON.parse(text) as Campaign;
+    loadFromRoot: async (rootPath: string) => {
+      const entries = await window.electronAPI.listFiles(rootPath);
+      for (const name of entries) {
+        const campaign = await loadCampaignIO(rootPath, name);
+        if (campaign) {
           set({ campaign });
           return;
-        } catch {
-          // Not a campaign directory
         }
       }
     },
@@ -85,10 +82,10 @@ export const useCampaignStore = create<CampaignStore>()(
       });
     },
 
-    saveCampaign: async (dirHandle: FileSystemDirectoryHandle) => {
+    saveCampaign: async (rootPath: string) => {
       const { campaign } = get();
       if (!campaign) return;
-      await saveCampaignIO(campaign, dirHandle);
+      await saveCampaignIO(campaign, rootPath);
     },
   })),
 );
