@@ -13,6 +13,7 @@ node_modules
 # Build output
 dist
 dist-ssr
+out
 
 # Test coverage
 coverage
@@ -35,3 +36,9 @@ coverage
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local design docs — not committed
+docs/
+
+# Local Claude Code settings
+.claude/
