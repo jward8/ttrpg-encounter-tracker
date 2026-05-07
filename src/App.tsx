@@ -10,6 +10,9 @@ import LogEntryModal from './components/combat/LogEntryModal';
 import EncounterSetup from './components/encounter/EncounterSetup';
 import InitiativeInput from './components/encounter/InitiativeInput';
 import WindowControls from './components/WindowControls';
+import { useUiStore } from './store/uiStore';
+import CampaignHub from './components/campaign/CampaignHub';
+import Toast from './components/Toast';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -36,8 +39,12 @@ export default function App() {
   const removeCondition = useEncounterStore(s => s.removeCondition);
   const commitAction = useEncounterStore(s => s.commitAction);
   const setCombatantArchetype = useEncounterStore(s => s.setCombatantArchetype);
+  const setEncounterStatus = useEncounterStore(s => s.setEncounterStatus);
 
   const createCampaign = useCampaignStore(s => s.createCampaign);
+
+  const view = useUiStore(s => s.view);
+  const goToHub = useUiStore(s => s.goToHub);
 
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<{ combatantId: string; action: CombatantAction } | null>(null);
@@ -100,6 +107,11 @@ export default function App() {
   useEffect(() => {
     if (!rootPath) setSaveStatus('idle');
   }, [rootPath]);
+
+  // When a campaign becomes available, default to the hub view.
+  useEffect(() => {
+    if (campaign) goToHub();
+  }, [campaign?.id]);
 
   const isActiveCombat = encounter.status === 'active' || encounter.status === 'paused';
 
@@ -197,6 +209,17 @@ export default function App() {
                 Undo
               </button>
               <button
+                onClick={() => {
+                  if (confirm('End combat? This will save final HP and spent resources back to your party roster.')) {
+                    setEncounterStatus('done');
+                    goToHub();
+                  }
+                }}
+                className="no-drag text-xs px-2 py-1 rounded border border-stone-700 transition-colors text-stone-400 hover:text-stone-200 hover:border-stone-500"
+              >
+                End Combat
+              </button>
+              <button
                 onClick={advanceTurn}
                 className="no-drag text-xs bg-amber-600 hover:bg-amber-500 text-white font-semibold px-3 py-1.5 rounded transition-colors"
               >
@@ -275,6 +298,8 @@ export default function App() {
             </button>
           </div>
         </div>
+      ) : view === 'hub' ? (
+        <CampaignHub />
       ) : encounter.status === 'setup' ? (
         <EncounterSetup />
       ) : encounter.status === 'initiative' ? (
@@ -377,6 +402,7 @@ export default function App() {
           )}
         </>
       )}
+      <Toast />
     </div>
   );
 }

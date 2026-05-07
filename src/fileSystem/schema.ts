@@ -17,6 +17,17 @@ export type Archetype =
   | 'glass_cannon' | 'brute' | 'skirmisher' | 'protector'
   | 'controller' | 'support' | 'boss' | 'survivor' | null;
 
+export interface AbilityScores {
+  strength: number;
+  dexterity: number;
+  constitution: number;
+  intelligence: number;
+  wisdom: number;
+  charisma: number;
+}
+
+export type AbilityName = keyof AbilityScores;
+
 export type RangeHint =
   | 'melee' | 'ranged_30' | 'ranged_60' | 'ranged_120'
   | 'self' | 'touch' | 'area' | 'any';
@@ -133,6 +144,19 @@ export interface PlayerCharacter {
   bonus_actions: CombatantAction[];
   reactions: CombatantAction[];
   notes: string;
+
+  // Persists between sessions; updated by encounterStore write-back.
+  current_hp: number;
+  temp_hp: number;
+
+  ability_scores: AbilityScores;
+  save_proficiencies: AbilityName[];
+  proficiency_bonus: number;
+  passive_perception: number;
+  resistances: DamageType[];
+  immunities: DamageType[];
+  vulnerabilities: DamageType[];
+  imported_from?: 'dndbeyond' | 'manual';
 }
 
 export interface Campaign {

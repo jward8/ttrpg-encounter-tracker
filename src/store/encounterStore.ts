@@ -3,11 +3,13 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import type {
   Encounter, Combatant, DamageType, ConditionInstance,
   CombatLogEntry, EncounterStatus, CombatantAction, Archetype,
+  PlayerCharacter,
 } from '../fileSystem/schema';
 import { applyDamage as damageEngineApply } from '../engine/damageEngine';
 import { getRecommendedActions, type RecommendedAction } from '../engine/tacticEngine';
 import { loadLatestEncounter } from '../fileSystem/encounterIO';
 import { useCampaignStore } from './campaignStore';
+import { useToastStore } from './toastStore';
 
 const MAX_UNDO = 20;
 const ROOT_PATH_KEY = 'ttrpg-root-path';
@@ -70,6 +72,70 @@ interface EncounterStore {
   commitAction: (payload: CommitActionPayload) => void;
   logAction: (entry: CombatLogEntry) => void;
   undoLastAction: () => void;
+}
+
+function writeBackToRoster(encounter: Encounter) {
+  const campaign = useCampaignStore.getState().campaign;
+  if (!campaign) return;
+  const update = useCampaignStore.getState().updatePlayerCharacter;
+
+  const summary = { damaged: 0, slotsSpent: 0, usesSpent: 0 };
+
+  for (const c of encounter.combatants) {
+    if (c.type !== 'player_character') continue;
+    const pc = campaign.player_characters.find(p => p.id === c.id);
+    if (!pc) continue;
+
+    const patch: Partial<PlayerCharacter> = {
+      current_hp: c.current_hp,
+      temp_hp: c.temp_hp,
+      spell_slots: structuredClone(c.spell_slots),
+      actions: pc.actions.map(a => {
+        const cAction = c.actions.find(x => x.id === a.id);
+        if (cAction && a.uses_max != null) {
+          if ((cAction.uses_remaining ?? a.uses_max) < a.uses_max) summary.usesSpent++;
+          return { ...a, uses_remaining: cAction.uses_remaining ?? a.uses_max };
+        }
+        return a;
+      }),
+      bonus_actions: pc.bonus_actions.map(a => {
+        const cAction = c.bonus_actions.find(x => x.id === a.id);
+        if (cAction && a.uses_max != null) {
+          return { ...a, uses_remaining: cAction.uses_remaining ?? a.uses_max };
+        }
+        return a;
+      }),
+      reactions: pc.reactions.map(a => {
+        const cAction = c.reactions.find(x => x.id === a.id);
+        if (cAction && a.uses_max != null) {
+          return { ...a, uses_remaining: cAction.uses_remaining ?? a.uses_max };
+        }
+        return a;
+      }),
+    };
+
+    if (c.current_hp < pc.current_hp) summary.damaged++;
+    for (const lvl of Object.keys(c.spell_slots)) {
+      const level = Number(lvl);
+      const cSlot = c.spell_slots[level];
+      const pcSlot = pc.spell_slots[level];
+      if (pcSlot && cSlot.remaining < pcSlot.remaining) {
+        summary.slotsSpent += pcSlot.remaining - cSlot.remaining;
+      }
+    }
+
+    update(c.id, patch);
+  }
+
+  if (summary.damaged + summary.slotsSpent + summary.usesSpent > 0) {
+    const parts: string[] = [];
+    if (summary.damaged) parts.push(`${summary.damaged} PC${summary.damaged === 1 ? '' : 's'} damaged`);
+    if (summary.slotsSpent) parts.push(`${summary.slotsSpent} spell slot${summary.slotsSpent === 1 ? '' : 's'} spent`);
+    if (summary.usesSpent) parts.push(`${summary.usesSpent} action use${summary.usesSpent === 1 ? '' : 's'} consumed`);
+    useToastStore.getState().push(`Party updated · ${parts.join(', ')}.`);
+  } else {
+    useToastStore.getState().push('Party updated · no changes.');
+  }
 }
 
 function pushSnapshot(past: Encounter[], current: Encounter): Encounter[] {
@@ -291,10 +357,14 @@ export const useEncounterStore = create<EncounterStore>()(
 
     setEncounterStatus: (status: EncounterStatus) => {
       const { encounter, past } = get();
+      const prevStatus = encounter.status;
       set({
         encounter: { ...encounter, status, updated_at: new Date().toISOString() },
         past: pushSnapshot(past, encounter),
       });
+      if (status === 'done' && prevStatus !== 'done') {
+        writeBackToRoster(get().encounter);
+      }
     },
 
     applyDamage: (combatantId, amount, damageType) => {
