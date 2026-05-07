@@ -39,6 +39,7 @@ export default function App() {
   const removeCondition = useEncounterStore(s => s.removeCondition);
   const commitAction = useEncounterStore(s => s.commitAction);
   const setCombatantArchetype = useEncounterStore(s => s.setCombatantArchetype);
+  const setEncounterStatus = useEncounterStore(s => s.setEncounterStatus);
 
   const createCampaign = useCampaignStore(s => s.createCampaign);
 
@@ -206,6 +207,17 @@ export default function App() {
                 className="no-drag text-xs px-2 py-1 rounded border border-stone-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-stone-400 hover:text-stone-200 hover:border-stone-500"
               >
                 Undo
+              </button>
+              <button
+                onClick={() => {
+                  if (confirm('End combat? This will save final HP and spent resources back to your party roster.')) {
+                    setEncounterStatus('done');
+                    goToHub();
+                  }
+                }}
+                className="no-drag text-xs px-2 py-1 rounded border border-stone-700 transition-colors text-stone-400 hover:text-stone-200 hover:border-stone-500"
+              >
+                End Combat
               </button>
               <button
                 onClick={advanceTurn}
