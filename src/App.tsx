@@ -10,6 +10,9 @@ import LogEntryModal from './components/combat/LogEntryModal';
 import EncounterSetup from './components/encounter/EncounterSetup';
 import InitiativeInput from './components/encounter/InitiativeInput';
 import WindowControls from './components/WindowControls';
+import { useUiStore } from './store/uiStore';
+import CampaignHub from './components/campaign/CampaignHub';
+import Toast from './components/Toast';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -38,6 +41,9 @@ export default function App() {
   const setCombatantArchetype = useEncounterStore(s => s.setCombatantArchetype);
 
   const createCampaign = useCampaignStore(s => s.createCampaign);
+
+  const view = useUiStore(s => s.view);
+  const goToHub = useUiStore(s => s.goToHub);
 
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<{ combatantId: string; action: CombatantAction } | null>(null);
@@ -100,6 +106,11 @@ export default function App() {
   useEffect(() => {
     if (!rootPath) setSaveStatus('idle');
   }, [rootPath]);
+
+  // When a campaign becomes available, default to the hub view.
+  useEffect(() => {
+    if (campaign) goToHub();
+  }, [campaign?.id]);
 
   const isActiveCombat = encounter.status === 'active' || encounter.status === 'paused';
 
@@ -275,6 +286,8 @@ export default function App() {
             </button>
           </div>
         </div>
+      ) : view === 'hub' ? (
+        <CampaignHub />
       ) : encounter.status === 'setup' ? (
         <EncounterSetup />
       ) : encounter.status === 'initiative' ? (
@@ -377,6 +390,7 @@ export default function App() {
           )}
         </>
       )}
+      <Toast />
     </div>
   );
 }
