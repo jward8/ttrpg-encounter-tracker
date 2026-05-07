@@ -191,8 +191,8 @@ export default function PlayerCharacterForm({ initial, onSubmit, onCancel }: Pro
       level: parseInt(form.level) || 1,
       ac,
       max_hp,
-      current_hp: parseInt(form.current_hp) || max_hp,
-      temp_hp: parseInt(form.temp_hp) || 0,
+      current_hp: Math.max(0, Math.min(parseInt(form.current_hp) || max_hp, max_hp)),
+      temp_hp: Math.max(0, parseInt(form.temp_hp) || 0),
       initiative_modifier: parseInt(form.initiative_modifier) || 0,
       speed: parseInt(form.speed) || 30,
       spell_slots: initial?.spell_slots ?? {},
@@ -256,7 +256,7 @@ export default function PlayerCharacterForm({ initial, onSubmit, onCancel }: Pro
         </div>
         <div>
           <label className={labelCls}>Current HP</label>
-          <input className={inputCls} type="number" min={0} value={form.current_hp} onChange={e => set('current_hp', e.target.value)} />
+          <input className={inputCls} type="number" min={0} max={!isNaN(max_hp) ? max_hp : undefined} value={form.current_hp} onChange={e => set('current_hp', e.target.value)} />
         </div>
         <div>
           <label className={labelCls}>Temp HP</label>
