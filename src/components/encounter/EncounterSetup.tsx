@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useCampaignStore } from '../../store/campaignStore';
 import { useEncounterStore } from '../../store/encounterStore';
+import { useUiStore } from '../../store/uiStore';
 import type { Combatant, PlayerCharacter } from '../../fileSystem/schema';
 import CombatantForm from './CombatantForm';
 
@@ -11,8 +12,8 @@ function playerCharacterToCombatant(pc: PlayerCharacter): Combatant {
     type: 'player_character',
     ac: pc.ac,
     max_hp: pc.max_hp,
-    current_hp: pc.max_hp,
-    temp_hp: 0,
+    current_hp: pc.current_hp,
+    temp_hp: pc.temp_hp,
     speed: pc.speed,
     initiative: null,
     initiative_modifier: pc.initiative_modifier,
@@ -21,9 +22,9 @@ function playerCharacterToCombatant(pc: PlayerCharacter): Combatant {
     bonus_actions: pc.bonus_actions,
     reactions: pc.reactions,
     spell_slots: pc.spell_slots,
-    resistances: [],
-    immunities: [],
-    vulnerabilities: [],
+    resistances: pc.resistances,
+    immunities: pc.immunities,
+    vulnerabilities: pc.vulnerabilities,
     legendary_actions_max: 0,
     legendary_actions_remaining: 0,
     archetype: null,
@@ -38,6 +39,7 @@ export default function EncounterSetup() {
   const addCombatant = useEncounterStore(s => s.addCombatant);
   const removeCombatant = useEncounterStore(s => s.removeCombatant);
   const setEncounterStatus = useEncounterStore(s => s.setEncounterStatus);
+  const goToHub = useUiStore(s => s.goToHub);
 
   const [selectedPcIds, setSelectedPcIds] = useState<Set<string>>(() => {
     const ids = encounter.combatants
@@ -125,6 +127,14 @@ export default function EncounterSetup() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6 max-w-3xl mx-auto w-full space-y-6">
+      <div>
+        <button
+          onClick={goToHub}
+          className="text-xs text-stone-400 hover:text-stone-200"
+        >
+          ← Back to Campaign
+        </button>
+      </div>
       {/* A — Meta */}
       <section className="bg-stone-900 border border-stone-700 rounded-lg p-4 space-y-3">
         <div className="flex items-center gap-2 mb-1">
